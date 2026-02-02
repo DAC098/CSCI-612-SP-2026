@@ -6,10 +6,10 @@ CDEFS=
 CFLAGS=--std=c++17 -O3 $(INCLUDE_DIRS) $(CDEFS)
 LIBS=-lpthread -L/usr/lib -lopencv_core -lopencv_flann -lopencv_video -lrt
 
-PRODUCT=custom_capture objectDetection sharpen_grid
+PRODUCT=custom_capture objectDetection sharpen sharpen_grid
 
 HFILES= 
-CFILES= sharpen_grid.c custom_capture.cpp objectDetection.cpp
+CFILES=sharpen.c sharpen_grid.c custom_capture.cpp objectDetection.cpp
 
 SRCS= ${HFILES} ${CFILES}
 OBJS= ${CFILES:.c=.o}
@@ -17,8 +17,11 @@ OBJS= ${CFILES:.c=.o}
 all:	${PRODUCT}
 
 clean:
-	-rm -f *.o *.NEW *~ *sharp*.ppm
+	-rm -f *.o *.NEW *~
 	-rm -f ${PRODUCT} ${DERIVED} ${GARBAGE}
+
+sharpen: sharpen.o
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ sharpen.o $(LIBS)
 
 sharpen_grid: sharpen_grid.o
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ sharpen_grid.o $(LIBS)
