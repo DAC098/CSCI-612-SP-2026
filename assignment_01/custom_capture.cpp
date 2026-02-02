@@ -1,5 +1,4 @@
 /*
- *
  * Example by Sam Siewert 
  * modified by David Cathers
  */
@@ -20,8 +19,6 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/viz/types.hpp>
-
-using namespace std::literals;
 
 struct TimerDelta {
     std::chrono::high_resolution_clock::time_point start;
@@ -70,6 +67,8 @@ struct Timer {
 };
 
 void draw_crosshair(cv::Mat& frame, std::int32_t length, cv::Scalar color) {
+    // there could be some issues with this if the picture is small enough but
+    // will work for now and cam be improved later
     cv::Size size = frame.size();
     auto min_size = std::min(size.height, size.width);
 
@@ -161,14 +160,19 @@ int main(int argc, char** argv) {
     cv::CommandLineParser parser(
         argc,
         argv,
-        "{help h||}"
+        "{help h||displays this help message.}"
         "{camera|0|Camera device number.}"
         "{low-res||changes the resolution down to 320x240.}"
         "{med-res||changes the resolution down to 640x480.}"
         "{show-ts||displays the current timstamp for the system.}"
         "{show-ch||displays the crosshair in the center of the frame.}"
     );
-    parser.printMessage();
+
+    if (parser.has("help")) {
+        parser.printMessage();
+
+        exit(0);
+    }
 
     std::int32_t camera_device = parser.get<std::int32_t>("camera");
 
