@@ -5,6 +5,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+
 #include <iostream>
 #include <vector>
 #include <chrono>
@@ -22,41 +23,49 @@
 
 using namespace std::literals;
 
-struct time_record {
-    std::uint32_t frames;
-    std::chrono::nanoseconds delta;
+struct TimerDelta {
+    std::chrono::high_resolution_clock::time_point start;
+    std::chrono::high_resolution_clock::time_point end;
 
-    time_record() :
-        frames(0), delta(std::chrono::nanoseconds::zero())
+    TimerDelta(
+        std::chrono::high_resolution_clock::time_point start,
+        std::chrono::high_resolution_clock::time_point end
+    ) :
+        start(start), end(end)
     {}
 
-    time_record(const time_record& other) :
-        frames(other.frames), delta(other.delta)
-    {}
-
-    time_record(std::uint32_t f, std::chrono::nanoseconds d) :
-        frames(f), delta(d)
-    {}
-
-    void update(
-        const std::chrono::time_point<std::chrono::high_resolution_clock>& end,
-        const std::chrono::time_point<std::chrono::high_resolution_clock>& start
-    ) {
-        auto diff = std::chrono::duration_cast<std::chrono::nanoseconds>(
-            end - start
+    std::chrono::milliseconds as_millis() {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(
+            this->end - this->start
         );
-
-        this->frames += 1;
-        this->delta += diff;
     }
 
-    double get_fps() {
-        return ((double)this->frames / (double)this->delta.count()) * 1000000000.0;
+    std::chrono::duration<double, std::ratio<1>> as_secs_f() {
+        return std::chrono::duration_cast<std::chrono::duration<double, std::ratio<1>>>(
+            this->end - this->start
+        );
     }
 
-    void reset() {
-        this->frames = 0;
-        this->delta = std::chrono::nanoseconds::zero();
+    double seconds_f() {
+        return this->as_secs_f().count();
+    }
+};
+
+struct Timer {
+    std::chrono::high_resolution_clock::time_point start;
+
+    Timer() :
+        start(std::chrono::high_resolution_clock::now())
+    {}
+
+    TimerDelta elapsed() {
+        auto now = std::chrono::high_resolution_clock::now();
+
+        TimerDelta delta(this->start, now);
+
+        this->start = now;
+
+        return delta;
     }
 };
 
@@ -148,89 +157,87 @@ void draw_sys_now(
     );
 }
 
-int main (int argc, char** argv) {
+int main(int argc, char** argv) {
+    cv::CommandLineParser parser(
+        argc,
+        argv,
+        "{help h||}"
+        "{camera|0|Camera device number.}"
+        "{low-res||changes the resolution down to 320x240.}"
+        "{med-res||changes the resolution down to 640x480.}"
+        "{show-ts||displays the current timstamp for the system.}"
+        "{show-ch||displays the crosshair in the center of the frame.}"
+    );
+    parser.printMessage();
+
+    std::int32_t camera_device = parser.get<std::int32_t>("camera");
+
     cv::VideoCapture vcap;
 
     // open the video stream and make sure it's opened
     // "0" is the default video device which is normally the built-in webcam
-    if (!vcap.open(0)) {
-        std::cout << "Error opening video stream or file" << std::endl;
+    if (!vcap.open(camera_device)) {
+        std::cout << "failed to open specified camera device\n";
 
         exit(EXIT_FAILURE);
-    } else {
-        std::cout << "Opened default camera interface" << std::endl;
     }
 
-    vcap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
-    vcap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+    if (parser.has("med-res")) {
+        vcap.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+        vcap.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+    } else if (parser.has("low-res")) {
+        vcap.set(cv::CAP_PROP_FRAME_WIDTH, 320);
+        vcap.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
+    }
 
-    cv::Mat mat_frame;
+    bool display_ch = parser.has("show-ch");
+    bool display_ts = parser.has("show-ts");
 
-    // the previous 60 seconds
-    auto max_size = 60;
-    auto index = 0;
+    cv::Mat frame;
 
-    time_record current;
-
-    std::vector<time_record> time_points;
-    time_points.reserve(max_size);
-
-    auto last_updated = std::chrono::high_resolution_clock::now();
+    // the previous n seconds
+    std::uint64_t total_frames = 0;
+    Timer timer;
 
     while (1) {
-        auto start = std::chrono::high_resolution_clock::now();
-
-        if (!vcap.read(mat_frame)) {
+        if (!vcap.read(frame)) {
             std::cout << "No frame" << std::endl;
 
             cv::waitKey();
         }
 
-        auto frame_dim = mat_frame.size();
+        auto frame_dim = frame.size();
 
-        draw_crosshair(mat_frame, 24, cv::viz::Color::yellow());
-        draw_sys_now(mat_frame, cv::Point(30, frame_dim.height - 30));
-
-        auto end = std::chrono::high_resolution_clock::now();
-
-        current.update(end, start);
-
-        std::stringstream fps;
-
-        fps << "fps: " << std::trunc(current.get_fps());
-
-        if (end - last_updated > 1s) {
-            if (time_points.size() == max_size) {
-                time_points[index] = current;
-
-                index = (index + 1) % max_size;
-            } else {
-                time_points.push_back(time_record(current));
-            }
-
-            current.reset();
+        if (display_ch) {
+            draw_crosshair(frame, 24, cv::viz::Color::yellow());
         }
 
-        double total = 0.0;
-
-        for (auto& calc : time_points) {
-            total += calc.get_fps();
+        if (display_ts) {
+            draw_sys_now(frame, cv::Point(30, frame_dim.height - 30));
         }
 
-        double avg = total / (double)time_points.size();
+        auto duration = timer.elapsed();
 
-        fps << " " << std::trunc(avg);
+        total_frames += 1;
 
-        draw_text(
-            mat_frame,
-            fps.str(),
-            cv::Point(30, 30),
-            cv::FONT_HERSHEY_COMPLEX_SMALL,
-            0.8,
-            cv::Scalar::all(255)
-        );
+        {
+            std::stringstream frame_data;
 
-        cv::imshow("custom-capture", mat_frame);
+            frame_data << "frames: " << total_frames
+                << " " << std::trunc(1.0 / duration.seconds_f()) 
+                << " " <<  duration.seconds_f() << "s";
+
+            draw_text(
+                frame,
+                frame_data.str(),
+                cv::Point(20, 20),
+                cv::FONT_HERSHEY_COMPLEX_SMALL,
+                0.8,
+                cv::Scalar::all(255)
+            );
+        }
+
+        cv::imshow("custom-capture", frame);
 
         // this paces the frame processing rate
         char c = cv::waitKey(33);
