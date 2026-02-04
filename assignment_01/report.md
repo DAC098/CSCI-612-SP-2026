@@ -2,6 +2,26 @@
 
 ## Q1
 
+The paper talks about various applications of computer vision with some of them
+being currently used while others are theoritical or under active research. The
+major point of having some of these applications use cloud infrastructure to
+provide faster compute and updated models. some of the major taking segments
+are:
+
+1. due to some of the constraints of embedded devices, they may not be able to 
+   process everything they need fast enough but would be able to send off its
+   data for processing and then return a result for continued operation.
+   autonomuous vehicles being an application where having the vehicle do some
+   local processing but then send off data to the cloud for more detailed
+   processing.
+2. another application talked about in the was the use of performing "skeletal
+   transformations". the idea that you could calculate the "skeleton" of an
+   object and then use that to for other purposes relating to medical
+   treatments and interactive media to name some.
+
+The skeletal transformations is an area that I have been interested in
+investigating after seeing some of its uses.
+
 ## Q2
 
 ### Q2-1
@@ -50,6 +70,8 @@
      frames for each argument.
 
 ## Q3
+
+
 
 needed to modify the `IMG_HEIGHT` and `IMG_WIDTH` variables to be the proper
 size for the tree image since the values are hard coded in `sharpen.c`. no other
