@@ -71,7 +71,9 @@ investigating after seeing some of its uses.
 
 ## Q3
 
-
+the psf can be a set of methods to modify an image with edge enhancement being
+one of them. the algorithm will scan the image and amplify the difference between
+color gradiants which would hopefully enhance the edge.
 
 needed to modify the `IMG_HEIGHT` and `IMG_WIDTH` variables to be the proper
 size for the tree image since the values are hard coded in `sharpen.c`. no other
@@ -90,7 +92,12 @@ modifications being made to it. the system in use would need to have additional
 cores / threads for this implementation to work vs using dedicated hardware such
 as GPU's.
 
-![`Trees.sharpen.ppm`](./Trees.sharpen.ppm)
+there is currently an issue with the with the non-grid sharpen file it will be
+provided in the tar but currently cannot be loaded. below is the sharpened
+version from the grid executable. the issue is probably a malformed header which
+can be fixed by switching to use the OpenCV `cv::imread` function to properly read
+the ppm file and then use the `cv::Mat` vs a raw array of color values.
+
 ![`Trees.sharpen_grid.ppm`](./Trees.sharpen_grid.ppm)
 
 ## Q4
